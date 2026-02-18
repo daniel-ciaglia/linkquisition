@@ -55,7 +55,7 @@ func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) error {
 	w.Canvas().AddShortcut(
 		&fyne.ShortcutCopy{}, func(shortcut fyne.Shortcut) {
 			fmt.Println("Copying URL to clipboard: " + urlToOpen)
-			w.Clipboard().SetContent(urlToOpen)
+			picker.fapp.Clipboard().SetContent(urlToOpen)
 
 			// Sleep for a while to allow the Clipboard.SetContent to finish
 			time.Sleep(200 * time.Millisecond) //nolint:gomnd

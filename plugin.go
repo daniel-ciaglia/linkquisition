@@ -12,7 +12,7 @@ type PluginServiceProvider interface {
 // Plugin is an interface that all plugins must implement
 type Plugin interface {
 	// Setup is called when the plugin is being setup
-	Setup(serviceProvider PluginServiceProvider, config map[string]interface{})
+	Setup(serviceProvider PluginServiceProvider, config map[string]any)
 
 	// ModifyUrl is called just before the URL is being matched against the browser-rules
 	// The plugin can modify the URL and return it (or otherwise just return the original URL)

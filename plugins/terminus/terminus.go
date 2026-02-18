@@ -27,7 +27,7 @@ type terminus struct {
 	serviceProvider linkquisition.PluginServiceProvider
 }
 
-func (p *terminus) Setup(serviceProvider linkquisition.PluginServiceProvider, config map[string]interface{}) {
+func (p *terminus) Setup(serviceProvider linkquisition.PluginServiceProvider, config map[string]any) {
 	p.MaxRedirects = 5
 	p.RequestTimeout = time.Millisecond * 2000
 

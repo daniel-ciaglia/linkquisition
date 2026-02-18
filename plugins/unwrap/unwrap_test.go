@@ -22,16 +22,16 @@ func TestUnwrap_ModifyUrl(t *testing.T) {
 
 	for _, tt := range []struct {
 		name            string
-		config          map[string]interface{}
+		config          map[string]any
 		inputUrl        string
 		expectedUrl     string
 		browserSettings []linkquisition.BrowserSettings
 	}{
 		{
 			name: "Microsoft Teams Defender Safelinks are unwapped",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"requireBrowserMatchToUnwrap": false,
-				"rules": []map[string]interface{}{
+				"rules": []map[string]any{
 					{
 						"match":     "^https://statics\\.teams\\.cdn\\.office\\.net/evergreen-assets/safelinks",
 						"parameter": "url",
@@ -43,9 +43,9 @@ func TestUnwrap_ModifyUrl(t *testing.T) {
 		},
 		{
 			name: "Microsoft Teams Defender Safelinks are not unwapped if the URL does not match the rule",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"requireBrowserMatchToUnwrap": false,
-				"rules": []map[string]interface{}{
+				"rules": []map[string]any{
 					{
 						"match":     "^https://statics\\.teams\\.cdn\\.office\\.net/evergreen-assets/safelinks",
 						"parameter": "url",
@@ -57,9 +57,9 @@ func TestUnwrap_ModifyUrl(t *testing.T) {
 		},
 		{
 			name: "Microsoft Teams Defender Safelinks are not unwapped if the unwapped URL would not match any rule browsers rules",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"requireBrowserMatchToUnwrap": true,
-				"rules": []map[string]interface{}{
+				"rules": []map[string]any{
 					{
 						"match":     "^https://statics\\.teams\\.cdn\\.office\\.net/evergreen-assets/safelinks",
 						"parameter": "url",
@@ -82,9 +82,9 @@ func TestUnwrap_ModifyUrl(t *testing.T) {
 		},
 		{
 			name: "Microsoft Teams Defender Safelinks are unwapped if the unwapped URL would match any browsers rule",
-			config: map[string]interface{}{
+			config: map[string]any{
 				"requireBrowserMatchToUnwrap": true,
-				"rules": []map[string]interface{}{
+				"rules": []map[string]any{
 					{
 						"match":     "^https://statics\\.teams\\.cdn\\.office\\.net/evergreen-assets/safelinks",
 						"parameter": "url",
