@@ -118,7 +118,7 @@ func TestTerminus_ModifyUrl(t *testing.T) {
 				testedPlugin := Plugin
 
 				provider := linkquisition.NewPluginServiceProvider(logger, &linkquisition.Settings{})
-				testedPlugin.Setup(provider, map[string]interface{}{})
+				testedPlugin.Setup(provider, map[string]any{})
 				testedPlugin.Client.Transport = &mock.RoundTripper{
 					RoundTripFunc: func(r *http.Request) (*http.Response, error) {
 						resp := &http.Response{

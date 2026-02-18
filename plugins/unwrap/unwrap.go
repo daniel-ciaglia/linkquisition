@@ -35,7 +35,7 @@ type unwrap struct {
 	serviceProvider linkquisition.PluginServiceProvider
 }
 
-func (p *unwrap) Setup(serviceProvider linkquisition.PluginServiceProvider, config map[string]interface{}) {
+func (p *unwrap) Setup(serviceProvider linkquisition.PluginServiceProvider, config map[string]any) {
 	var settings UnwrapPluginSettings
 	if err := mapstructure.Decode(config, &settings); err != nil {
 		serviceProvider.GetLogger().Warn("error decoding settings", "error", err.Error(), "plugin", "unwrap")

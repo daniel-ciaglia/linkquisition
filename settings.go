@@ -75,7 +75,7 @@ type PluginSettings struct {
 	// IsDisabled allows temporarily disabling individual plugins
 	IsDisabled bool `json:"isDisabled"`
 
-	Settings map[string]interface{} `json:"settings,omitempty"`
+	Settings map[string]any `json:"settings,omitempty"`
 }
 
 type UiSettings struct {
@@ -86,7 +86,7 @@ type Settings struct {
 	LogLevel string            `json:"logLevel,omitempty"`
 	Browsers []BrowserSettings `json:"browsers"`
 	Plugins  []PluginSettings  `json:"plugins,omitempty"`
-	Ui       UiSettings        `json:"ui,omitempty"`
+	Ui       UiSettings        `json:"ui"`
 }
 
 // NormalizeBrowsers moves hidden browsers to the end of the list

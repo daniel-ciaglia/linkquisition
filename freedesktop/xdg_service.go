@@ -80,7 +80,7 @@ func (x *XdgService) GetApplicationPaths() []string {
 
 	var paths []string
 
-	for _, datadir := range strings.Split(datadirs, ":") {
+	for datadir := range strings.SplitSeq(datadirs, ":") {
 		desktopEntryPath := filepath.Join(datadir, "applications")
 
 		if _, err := os.Stat(desktopEntryPath); err == nil {

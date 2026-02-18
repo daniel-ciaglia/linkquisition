@@ -110,7 +110,7 @@ func setupPlugins(
 
 func setupPlugin(
 	plug *plugin.Plugin,
-	settings map[string]interface{},
+	settings map[string]any,
 	pluginServiceProvider linkquisition.PluginServiceProvider,
 ) (
 	p linkquisition.Plugin,
