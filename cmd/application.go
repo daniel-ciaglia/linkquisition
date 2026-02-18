@@ -11,8 +11,8 @@ import (
 	"plugin"
 	"strings"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/strobotti/linkquisition"
 	"github.com/strobotti/linkquisition/freedesktop"
@@ -22,7 +22,7 @@ const logDirPerms = 0755
 const logFilePerms = 0644
 
 type Application struct {
-	Fapp            fyne.App
+	GtkApp          *gtk.Application
 	XdgService      freedesktop.XdgService
 	BrowserService  linkquisition.BrowserService
 	SettingsService linkquisition.SettingsService
@@ -32,7 +32,10 @@ type Application struct {
 }
 
 func NewApplication() *Application {
-	fapp := app.New()
+	gtkApp := gtk.NewApplication(
+		"io.github.strobotti.linkquisition",
+		gio.ApplicationFlagsNone,
+	)
 
 	xdgService := &freedesktop.XdgService{}
 	browserService := &freedesktop.BrowserService{
@@ -53,7 +56,7 @@ func NewApplication() *Application {
 	pluginServiceProvider := linkquisition.NewPluginServiceProvider(logger, settingsService.GetSettings())
 
 	a := &Application{
-		Fapp:            fapp,
+		GtkApp:          gtkApp,
 		BrowserService:  browserService,
 		SettingsService: settingsService,
 		Logger:          logger,
@@ -170,53 +173,72 @@ func setupLogger(settingsService linkquisition.SettingsService) *slog.Logger {
 
 func (a *Application) Run(_ context.Context) error {
 	args := os.Args
-	if len(args) < 2 { //nolint:gomnd
-		configurator := NewConfigurator(a.Fapp, a.BrowserService, a.SettingsService)
-		return configurator.Run()
-	}
 
-	if args[1] == "--version" || args[1] == "-v" || args[1] == "version" {
+	// --- Non-UI path: version flag ---
+	if len(args) >= 2 && (args[1] == "--version" || args[1] == "-v" || args[1] == "version") {
 		fmt.Printf("Version: %s\n", version)
 		return nil
 	}
 
+	// --- Determine what UI to show ---
+	showConfigurator := len(args) < 2 //nolint:mnd
+
+	var urlToOpen string
 	var browsers []linkquisition.Browser
 
-	var err error
+	if !showConfigurator {
+		a.Logger.Debug(fmt.Sprintf("Starting linkquisition with args: `%s`", strings.Join(os.Args, " ")))
 
-	a.Logger.Debug(fmt.Sprintf("Starting linkquisition with args: `%s`", strings.Join(os.Args, " ")))
+		urlToOpen = args[1]
 
-	urlToOpen := args[1]
+		if _, err := url.ParseRequestURI(urlToOpen); err != nil {
+			a.Logger.Error("Invalid URL: " + urlToOpen)
+			return nil
+		}
 
-	if _, err = url.ParseRequestURI(urlToOpen); err != nil {
-		a.Logger.Error("Invalid URL: " + urlToOpen)
+		for _, plug := range a.plugins {
+			urlToOpen = plug.ModifyUrl(urlToOpen)
+		}
 
-		return nil
+		isConfigured, configErr := a.SettingsService.IsConfigured()
+		if configErr != nil {
+			a.Logger.Warn("configuration error", "error", configErr.Error())
+		}
+
+		if isConfigured {
+			if browser, matchErr := a.SettingsService.GetSettings().GetMatchingBrowser(urlToOpen); matchErr == nil {
+				a.Logger.Debug(fmt.Sprintf("found a matching browser-rule for browser `%s` with URL `%s`", browser.Name, urlToOpen))
+				if a.BrowserService.OpenUrlWithBrowser(urlToOpen, browser) == nil {
+					return nil
+				}
+			}
+			browsers = a.SettingsService.GetSettings().GetSelectableBrowsers()
+		} else if b, err := a.BrowserService.GetAvailableBrowsers(); err != nil {
+			return err
+		} else {
+			a.Logger.Warn("browsers not configured, falling back to system settings")
+			browsers = b
+		}
 	}
 
-	for _, plug := range a.plugins {
-		urlToOpen = plug.ModifyUrl(urlToOpen)
-	}
-
-	isConfigured, configErr := a.SettingsService.IsConfigured()
-	if configErr != nil {
-		a.Logger.Warn("configuration error", "error", configErr.Error())
-	}
-
-	if isConfigured {
-		if browser, matchErr := a.SettingsService.GetSettings().GetMatchingBrowser(urlToOpen); matchErr == nil {
-			a.Logger.Debug(fmt.Sprintf("found a matching browser-rule for browser `%s` with URL `%s`", browser.Name, urlToOpen))
-			if a.BrowserService.OpenUrlWithBrowser(urlToOpen, browser) == nil {
-				return nil
+	// --- GTK4 event loop ---
+	a.GtkApp.ConnectActivate(func() {
+		if showConfigurator {
+			c := NewConfigurator(a.GtkApp, a.BrowserService, a.SettingsService)
+			if err := c.Run(); err != nil {
+				a.Logger.Error("configurator error", "error", err)
+			}
+		} else {
+			bp := NewBrowserPicker(a.GtkApp, a.BrowserService, browsers, a.SettingsService)
+			if err := bp.Run(context.Background(), urlToOpen); err != nil {
+				a.Logger.Error("browser picker error", "error", err)
 			}
 		}
-		browsers = a.SettingsService.GetSettings().GetSelectableBrowsers()
-	} else if browsers, err = a.BrowserService.GetAvailableBrowsers(); err != nil {
-		return err
-	} else {
-		a.Logger.Warn("browsers not configured, falling back to system settings")
-	}
+	})
 
-	bp := NewBrowserPicker(a.Fapp, a.BrowserService, browsers, a.SettingsService)
-	return bp.Run(context.Background(), urlToOpen)
+	exitCode := a.GtkApp.Run(nil)
+	if exitCode != 0 {
+		return fmt.Errorf("gtk application exited with code %d", exitCode)
+	}
+	return nil
 }

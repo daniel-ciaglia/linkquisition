@@ -3,117 +3,113 @@ package main
 import (
 	"fmt"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/widget"
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
+	"github.com/diamondburned/gotk4/pkg/gdkpixbuf/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/strobotti/linkquisition"
 	"github.com/strobotti/linkquisition/resources"
 )
 
 type Configurator struct {
-	fapp            fyne.App
+	gtkApp          *gtk.Application
 	browserService  linkquisition.BrowserService
 	settingsService linkquisition.SettingsService
 }
 
 func NewConfigurator(
-	fapp fyne.App,
+	gtkApp *gtk.Application,
 	browserService linkquisition.BrowserService,
 	settingsService linkquisition.SettingsService,
 ) *Configurator {
 	return &Configurator{
-		fapp:            fapp,
+		gtkApp:          gtkApp,
 		browserService:  browserService,
 		settingsService: settingsService,
 	}
 }
 
 func (c *Configurator) Run() error {
-	w := c.fapp.NewWindow("Linkquisition settings")
+	win := gtk.NewApplicationWindow(c.gtkApp)
+	win.SetTitle("Linkquisition settings")
+	win.SetResizable(false)
+	win.SetDefaultSize(500, 400) //nolint:mnd
 
-	tabs := container.NewAppTabs(
-		container.NewTabItem("General", c.getGeneralTab()),
-		container.NewTabItem("About", c.getAboutTab()),
-	)
-	tabs.SetTabLocation(container.TabLocationTop)
+	notebook := gtk.NewNotebook()
+	notebook.AppendPage(c.getGeneralTab(), gtk.NewLabel("General"))
+	notebook.AppendPage(c.getAboutTab(), gtk.NewLabel("About"))
+	win.SetChild(notebook)
 
-	w.SetContent(tabs)
-
-	w.SetFixedSize(true)
-	w.Resize(fyne.NewSize(500, 400)) //nolint:gomnd
-	w.CenterOnScreen()
-
-	w.ShowAndRun()
+	win.SetVisible(true)
 
 	return nil
 }
 
-func (c *Configurator) getGeneralTab() fyne.CanvasObject {
+func (c *Configurator) getGeneralTab() gtk.Widgetter {
+	vbox := gtk.NewBox(gtk.OrientationVertical, 6)
+
 	// MAKE DEFAULT -LABEL
-	makeDefaultLabel := widget.NewLabel(
+	makeDefaultLabel := gtk.NewLabel(
 		"In order to Linkquisition to function as a browser-picker\n" +
 			"it has to be set as the default browser:",
 	)
+	vbox.Append(makeDefaultLabel)
 
-	setupMakeDefaultButton := func(button *widget.Button, isDefault bool) {
+	setupMakeDefaultButton := func(button *gtk.Button, isDefault bool) {
 		if isDefault {
-			button.SetText("All good!")
-			button.Disable()
+			button.SetLabel("All good!")
+			button.SetSensitive(false)
 		} else {
-			button.SetText("Make default")
-			button.Enable()
+			button.SetLabel("Make default")
+			button.SetSensitive(true)
 		}
 	}
 
 	// MAKE DEFAULT -BUTTON
-	onClickMakeDefaultButton := func(button *widget.Button) {
-		button.Disable()
+	makeDefaultButton := gtk.NewButton()
+	makeDefaultButton.SetLabel("checking")
+	makeDefaultButton.SetSensitive(false)
+
+	makeDefaultButton.ConnectClicked(func() {
+		makeDefaultButton.SetSensitive(false)
 		err := c.browserService.MakeUsTheDefaultBrowser()
 		if err != nil {
-			button.SetText("Error making default!")
-			button.Enable()
+			makeDefaultButton.SetLabel("Error making default!")
+			makeDefaultButton.SetSensitive(true)
 			fmt.Printf("error making Linkquisition the default browser: %v", err)
 		} else {
-			setupMakeDefaultButton(button, true)
+			setupMakeDefaultButton(makeDefaultButton, true)
 		}
-	}
-
-	makeDefaultButton := widget.NewButton("checking", func() {})
-	makeDefaultButton.OnTapped = func() {
-		onClickMakeDefaultButton(makeDefaultButton)
-	}
-	makeDefaultButton.Disable()
+	})
 
 	setupMakeDefaultButton(makeDefaultButton, c.browserService.AreWeTheDefaultBrowser())
+	vbox.Append(makeDefaultButton)
 
 	// SCAN BROWSERS -BUTTON
-	setupScanBrowsersButton := func(button *widget.Button, alreadyScanned bool) {
+	setupScanBrowsersButton := func(button *gtk.Button, alreadyScanned bool) {
 		if alreadyScanned {
-			button.SetText("Re-scan browsers")
+			button.SetLabel("Re-scan browsers")
 		} else {
-			button.SetText("Scan browsers")
+			button.SetLabel("Scan browsers")
 		}
-		button.Enable()
+		button.SetSensitive(true)
 	}
-	onClickScanBrowsersButton := func(button *widget.Button) {
-		button.Disable()
+
+	scanBrowsersButton := gtk.NewButton()
+	scanBrowsersButton.SetLabel("Scan now")
+
+	scanBrowsersButton.ConnectClicked(func() {
+		scanBrowsersButton.SetSensitive(false)
 		err := c.settingsService.ScanBrowsers()
 		if err != nil {
-			button.SetText("Error scanning browsers!")
-			button.Enable()
+			scanBrowsersButton.SetLabel("Error scanning browsers!")
+			scanBrowsersButton.SetSensitive(true)
 			fmt.Printf("error scanning browsers: %v", err)
 		} else {
 			isConfigured, _ := c.settingsService.IsConfigured()
-			setupScanBrowsersButton(button, isConfigured)
+			setupScanBrowsersButton(scanBrowsersButton, isConfigured)
 		}
-	}
-
-	scanBrowsersButton := widget.NewButton("Scan now", func() {})
-	scanBrowsersButton.OnTapped = func() {
-		onClickScanBrowsersButton(scanBrowsersButton)
-	}
+	})
 
 	// TODO show a spinner while scanning
 	// TODO show a message when scanning is done
@@ -121,38 +117,42 @@ func (c *Configurator) getGeneralTab() fyne.CanvasObject {
 	isConfigured, _ := c.settingsService.IsConfigured()
 	setupScanBrowsersButton(scanBrowsersButton, isConfigured)
 
-	return container.NewVBox(
-		makeDefaultLabel,
-		makeDefaultButton,
-		layout.NewSpacer(),
-		widget.NewLabel(
-			"The browsers should be scanned and stored in a configuration file for\n"+
-				"faster startup and for enabling custom configuration.\n"+
-				"\n"+
-				"The scan should be safe to execute at any time: only newly detected\n"+
-				"browsers are added and the ones no longer present in the system are\n"+
-				"removed.\n\nAny existing rules, ordering or customization shouldn't be affected.",
-		),
-		scanBrowsersButton,
+	descLabel := gtk.NewLabel(
+		"The browsers should be scanned and stored in a configuration file for\n" +
+			"faster startup and for enabling custom configuration.\n" +
+			"\n" +
+			"The scan should be safe to execute at any time: only newly detected\n" +
+			"browsers are added and the ones no longer present in the system are\n" +
+			"removed.\n\nAny existing rules, ordering or customization shouldn't be affected.",
 	)
+	vbox.Append(descLabel)
+	vbox.Append(scanBrowsersButton)
+
+	return vbox
 }
 
-func (c *Configurator) getAboutTab() fyne.CanvasObject {
-	icon := widget.NewButtonWithIcon(
-		"",
-		resources.LinkquisitionIcon,
-		func() {
-			if err := c.browserService.OpenUrlWithDefaultBrowser("https://github.com/Strobotti/linkquisition"); err != nil {
-				fmt.Printf("error opening url: %s", err.Error())
-			}
-		},
-	)
+func (c *Configurator) getAboutTab() gtk.Widgetter {
+	vbox := gtk.NewBox(gtk.OrientationVertical, 6)
 
-	return container.NewBorder(
-		container.NewBorder(nil, nil, icon, nil, widget.NewLabel(fmt.Sprintf("Linkquisition %s", version))),
-		nil,
-		nil,
-		nil,
-		layout.NewSpacer(),
-	)
+	loader := gdkpixbuf.NewPixbufLoader()
+	if err := loader.Write(resources.LinkquisitionIconBytes); err == nil {
+		if err := loader.Close(); err == nil {
+			if pixbuf := loader.Pixbuf(); pixbuf != nil {
+				img := gtk.NewImageFromPaintable(gdk.NewTextureForPixbuf(pixbuf))
+				btn := gtk.NewButton()
+				btn.SetChild(img)
+				btn.ConnectClicked(func() {
+					if err := c.browserService.OpenUrlWithDefaultBrowser("https://github.com/Strobotti/linkquisition"); err != nil {
+						fmt.Printf("error opening url: %s", err.Error())
+					}
+				})
+				headerBox := gtk.NewBox(gtk.OrientationHorizontal, 4)
+				headerBox.Append(btn)
+				headerBox.Append(gtk.NewLabel(fmt.Sprintf("Linkquisition %s", version)))
+				vbox.Append(headerBox)
+			}
+		}
+	}
+
+	return vbox
 }

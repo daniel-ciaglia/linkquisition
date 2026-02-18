@@ -1,7 +1,5 @@
 package main
 
-//go:generate fyne bundle -o resources/bundled.go --package resources --name LinkquisitionIcon Icon.png
-
 import (
 	"context"
 	"log"
