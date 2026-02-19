@@ -3,197 +3,183 @@ package main
 import (
 	"context"
 	"fmt"
-	"time"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/data/binding"
-	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/widget"
+	"github.com/diamondburned/gotk4/pkg/gdk/v4"
+	"github.com/diamondburned/gotk4/pkg/gdkpixbuf/v2"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
+
 	"github.com/strobotti/linkquisition"
 )
 
+const (
+	windowDefaultWidth = 600
+	spacingSmall       = 4
+	spacingMedium      = 6
+	spacingLarge       = 8
+)
+
 type BrowserPicker struct {
-	fapp            fyne.App
+	gtkApp          *gtk.Application
 	browserService  linkquisition.BrowserService
 	browsers        []linkquisition.Browser
 	settingsService linkquisition.SettingsService
 }
 
 func NewBrowserPicker(
-	fapp fyne.App,
+	gtkApp *gtk.Application,
 	browserService linkquisition.BrowserService,
 	browsers []linkquisition.Browser,
 	settingsService linkquisition.SettingsService,
 ) *BrowserPicker {
 	return &BrowserPicker{
-		fapp:            fapp,
+		gtkApp:          gtkApp,
 		browserService:  browserService,
 		browsers:        browsers,
 		settingsService: settingsService,
 	}
 }
 
-//nolint:funlen
-func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) error {
-	var buttons []fyne.CanvasObject
-	remember := binding.NewBool()
-	_ = remember.Set(false)
-	rememberMatchType := binding.NewString()
+func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) {
+	var remember bool
 	// TODO give user the option to choose between site and domain (and later on regex, too)
-	_ = rememberMatchType.Set(linkquisition.BrowserMatchTypeSite)
+	rememberMatchType := linkquisition.BrowserMatchTypeSite
+
+	win := gtk.NewApplicationWindow(picker.gtkApp)
+	win.SetTitle("Linkquisition")
+	win.SetResizable(false)
+	win.SetDefaultSize(windowDefaultWidth, -1)
+
+	vbox := gtk.NewBox(gtk.OrientationVertical, spacingMedium)
+
+	var buttons []*gtk.Button
 
 	for i := range picker.browsers {
-		buttons = append(
-			buttons,
-			picker.makeBrowserButton(picker.browsers[i], urlToOpen, remember, rememberMatchType),
-		)
+		btn := picker.makeBrowserButton(picker.browsers[i], urlToOpen, &remember, &rememberMatchType)
+		buttons = append(buttons, btn)
+		vbox.Append(btn)
 	}
 
-	w := picker.fapp.NewWindow("Linkquisition")
+	// URL display row
+	urlEntry := gtk.NewEntry()
+	urlEntry.SetText(urlToOpen)
+	urlEntry.SetEditable(false)
+	urlEntry.SetCanFocus(false)
 
-	w.Canvas().AddShortcut(
-		&fyne.ShortcutCopy{}, func(shortcut fyne.Shortcut) {
-			fmt.Println("Copying URL to clipboard: " + urlToOpen)
-			picker.fapp.Clipboard().SetContent(urlToOpen)
+	urlRow := gtk.NewBox(gtk.OrientationHorizontal, spacingSmall)
+	urlRow.Append(gtk.NewLabel("Open:"))
+	urlRow.Append(urlEntry)
+	vbox.Append(urlRow)
 
-			// Sleep for a while to allow the Clipboard.SetContent to finish
-			time.Sleep(200 * time.Millisecond) //nolint:gomnd
-			picker.fapp.Quit()
-		},
-	)
-
-	w.Canvas().SetOnTypedKey(
-		func(keyEvent *fyne.KeyEvent) {
-			if keyEvent.Name == fyne.KeyEscape {
-				picker.fapp.Quit()
-			}
-			if len(buttons) > 0 {
-				if keyEvent.Name == fyne.KeyReturn {
-					buttons[0].(*widget.Button).OnTapped()
-					return
-				}
-
-				// TODO there must be a better way of doing this
-				numkeyNames := []fyne.KeyName{
-					fyne.Key1,
-					fyne.Key2,
-					fyne.Key3,
-					fyne.Key4,
-					fyne.Key5,
-					fyne.Key6,
-					fyne.Key7,
-					fyne.Key8,
-					fyne.Key9,
-				}
-
-				for i := range buttons {
-					if keyEvent.Name == numkeyNames[i] {
-						buttons[i].(*widget.Button).OnTapped()
-						return
-					}
-				}
-			}
-		},
-	)
-
-	var widgets []fyne.CanvasObject
-
-	widgets = append(widgets, buttons...)
-
-	// if the text is too long, it will be truncated
-	text := urlToOpen
-	if len(urlToOpen) > 75 { //nolint:gomnd
-		text = urlToOpen[:75] + "..."
-	}
-
-	input := widget.NewEntry()
-	input.SetText(text)
-	input.Disable()
-
-	widgets = append(
-		widgets,
-		container.NewBorder(nil, nil, widget.NewLabel("Open:"), nil, input),
-	)
-
+	// Remember checkbox
 	uto := linkquisition.NewURL(urlToOpen)
 	site, _ := uto.GetSite()
-	check := widget.NewCheckWithData(
-		"Remember this choice with "+site,
-		remember,
-	)
-
-	widgets = append(
-		widgets,
-		check,
-	)
+	check := gtk.NewCheckButtonWithLabel("Remember this choice with " + site)
+	check.ConnectToggled(func() {
+		remember = check.Active()
+	})
+	vbox.Append(check)
 
 	if !picker.settingsService.GetSettings().Ui.HideKeyboardGuideLabel {
-		widgets = append(
-			widgets,
-			layout.NewSpacer(),
-			widget.NewLabel("Press 'ENTER' to pick first, 'ESC' to quit, 'ctrl+c' to copy URL to clipboard"),
-		)
+		vbox.Append(gtk.NewLabel("Press 'ENTER' to pick first, 'ESC' to quit, 'ctrl+c' to copy URL to clipboard"))
 	}
 
-	w.SetFixedSize(true)
-	w.Resize(fyne.NewSize(600, 50)) //nolint:gomnd
-	w.CenterOnScreen()
+	win.SetChild(vbox)
 
-	if icon, err := fyne.LoadResourceFromPath("Icon.png"); err == nil {
-		w.SetIcon(icon)
-	}
+	// Keyboard shortcuts: ESC and Enter and number keys
+	keyCtrl := gtk.NewEventControllerKey()
+	keyCtrl.ConnectKeyPressed(func(keyval, _ uint, _ gdk.ModifierType) bool {
+		switch keyval {
+		case gdk.KEY_Escape:
+			picker.gtkApp.Quit()
+			return true
+		case gdk.KEY_Return:
+			if len(buttons) > 0 {
+				buttons[0].Activate()
+			}
+			return true
+		}
+		for i, btn := range buttons {
+			if keyval == gdk.KEY_1+uint(i) {
+				btn.Activate()
+				return true
+			}
+		}
+		return false
+	})
+	win.AddController(keyCtrl)
 
-	w.SetContent(container.NewVBox(widgets...))
+	// Ctrl+C: copy URL to clipboard
+	shortcutCtrl := gtk.NewShortcutController()
+	shortcutCtrl.AddShortcut(gtk.NewShortcut(
+		gtk.NewKeyvalTrigger(gdk.KEY_c, gdk.ControlMask),
+		gtk.NewCallbackAction(func(_ gtk.Widgetter, _ *glib.Variant) bool {
+			fmt.Println("Copying URL to clipboard: " + urlToOpen)
+			display := gdk.DisplayGetDefault()
+			clipboard := display.Clipboard()
+			clipboard.SetText(urlToOpen)
+			picker.gtkApp.Quit()
+			return true
+		}),
+	))
+	win.AddController(shortcutCtrl)
 
-	w.ShowAndRun()
-
-	return nil
+	win.SetVisible(true)
 }
 
 func (picker *BrowserPicker) makeBrowserButton(
 	browser linkquisition.Browser,
 	urlToOpen string,
-	remember binding.Bool,
-	rememberMatchType binding.String,
-) fyne.CanvasObject {
-	var icon fyne.Resource
+	remember *bool,
+	rememberMatchType *string,
+) *gtk.Button {
+	btn := gtk.NewButton()
+	box := gtk.NewBox(gtk.OrientationHorizontal, spacingLarge)
 
 	iconBytes, err := picker.browserService.GetIconForBrowser(browser)
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		icon = fyne.NewStaticResource("icon.png", iconBytes)
-	}
-
-	return widget.NewButtonWithIcon(
-		browser.Name,
-		icon,
-		func() {
-			rem, _ := remember.Get()
-			fmt.Printf("Opening URL with browser: %s; remember the choice: %v\n", browser.Name, rem)
-
-			settings := picker.settingsService.GetSettings()
-			remType, _ := rememberMatchType.Get()
-
-			if rem {
-				uto := linkquisition.NewURL(urlToOpen)
-				matchValue, _ := uto.GetDomain()
-
-				if remType == linkquisition.BrowserMatchTypeSite {
-					matchValue, _ = uto.GetSite()
-				}
-
-				settings.AddRuleToBrowser(&browser, remType, matchValue)
-				if writeErr := picker.settingsService.WriteSettings(settings); writeErr != nil {
-					fmt.Printf("Failed to write settings: %v\n", writeErr)
+		loader := gdkpixbuf.NewPixbufLoader()
+		if err := loader.Write(iconBytes); err == nil {
+			if err := loader.Close(); err == nil {
+				if pixbuf := loader.Pixbuf(); pixbuf != nil {
+					img := gtk.NewImageFromPaintable(gdk.NewTextureForPixbuf(pixbuf))
+					img.SetIconSize(gtk.IconSizeNormal)
+					box.Append(img)
 				}
 			}
+		}
+	}
 
-			go func() {
-				_ = picker.browserService.OpenUrlWithBrowser(urlToOpen, &browser)
-			}()
-			picker.fapp.Quit()
-		},
-	)
+	label := gtk.NewLabel(browser.Name)
+	box.Append(label)
+	btn.SetChild(box)
+
+	btn.ConnectClicked(func() {
+		fmt.Printf("Opening URL with browser: %s; remember the choice: %v\n", browser.Name, *remember)
+
+		settings := picker.settingsService.GetSettings()
+
+		if *remember {
+			uto := linkquisition.NewURL(urlToOpen)
+			matchValue, _ := uto.GetDomain()
+
+			if *rememberMatchType == linkquisition.BrowserMatchTypeSite {
+				matchValue, _ = uto.GetSite()
+			}
+
+			settings.AddRuleToBrowser(&browser, *rememberMatchType, matchValue)
+			if writeErr := picker.settingsService.WriteSettings(settings); writeErr != nil {
+				fmt.Printf("Failed to write settings: %v\n", writeErr)
+			}
+		}
+
+		go func() {
+			_ = picker.browserService.OpenUrlWithBrowser(urlToOpen, &browser)
+		}()
+		picker.gtkApp.Quit()
+	})
+
+	return btn
 }

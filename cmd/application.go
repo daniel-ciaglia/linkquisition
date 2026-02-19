@@ -11,8 +11,8 @@ import (
 	"plugin"
 	"strings"
 
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/app"
+	"github.com/diamondburned/gotk4/pkg/gio/v2"
+	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/strobotti/linkquisition"
 	"github.com/strobotti/linkquisition/freedesktop"
@@ -22,7 +22,7 @@ const logDirPerms = 0755
 const logFilePerms = 0644
 
 type Application struct {
-	Fapp            fyne.App
+	GtkApp          *gtk.Application
 	XdgService      freedesktop.XdgService
 	BrowserService  linkquisition.BrowserService
 	SettingsService linkquisition.SettingsService
@@ -32,7 +32,11 @@ type Application struct {
 }
 
 func NewApplication() *Application {
-	fapp := app.New()
+	gtkApp := gtk.NewApplication(
+		"io.github.strobotti.linkquisition",
+		gio.ApplicationFlagsNone,
+	)
+	gtk.WindowSetDefaultIconName("io.github.strobotti.linkquisition")
 
 	xdgService := &freedesktop.XdgService{}
 	browserService := &freedesktop.BrowserService{
@@ -53,7 +57,7 @@ func NewApplication() *Application {
 	pluginServiceProvider := linkquisition.NewPluginServiceProvider(logger, settingsService.GetSettings())
 
 	a := &Application{
-		Fapp:            fapp,
+		GtkApp:          gtkApp,
 		BrowserService:  browserService,
 		SettingsService: settingsService,
 		Logger:          logger,
@@ -61,6 +65,16 @@ func NewApplication() *Application {
 	}
 
 	return a
+}
+
+func resolvePluginPath(name string, folders []string) (string, bool) {
+	for _, folder := range folders {
+		candidate := filepath.Join(folder, name)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, true
+		}
+	}
+	return "", false
 }
 
 func setupPlugins(
@@ -83,13 +97,12 @@ func setupPlugins(
 		}
 
 		if _, err := os.Stat(pluginPath); err != nil {
-			pluginPathToCheck := filepath.Join(settingsService.GetPluginFolderPath(), pluginPath)
-			if _, err := os.Stat(pluginPathToCheck); err == nil {
-				pluginPath = pluginPathToCheck
-			} else {
-				logger.Error("Error loading plugin", "plugin", pluginSettings.Path, "error", err.Error())
+			resolved, ok := resolvePluginPath(pluginPath, settingsService.GetPluginFolderPaths())
+			if !ok {
+				logger.Error("Error loading plugin: not found in any XDG data path", "plugin", pluginSettings.Path)
 				continue
 			}
+			pluginPath = resolved
 		}
 
 		plug, err := plugin.Open(pluginPath)
@@ -168,30 +181,26 @@ func setupLogger(settingsService linkquisition.SettingsService) *slog.Logger {
 	return slog.New(slog.NewTextHandler(logWriter, logHandlerOpts))
 }
 
-func (a *Application) Run(_ context.Context) error {
-	args := os.Args
-	if len(args) < 2 { //nolint:gomnd
-		configurator := NewConfigurator(a.Fapp, a.BrowserService, a.SettingsService)
-		return configurator.Run()
+// uiState holds the pre-computed state needed to decide what GTK window to open.
+type uiState struct {
+	showConfigurator bool
+	urlToOpen        string
+	browsers         []linkquisition.Browser
+	done             bool // true when the action is already handled (no UI needed)
+}
+
+// prepareUIState resolves which UI to show and pre-fetches browsers when needed.
+func (a *Application) prepareUIState(args []string) (*uiState, error) {
+	if len(args) < 2 { //nolint:mnd
+		return &uiState{showConfigurator: true}, nil
 	}
 
-	if args[1] == "--version" || args[1] == "-v" || args[1] == "version" {
-		fmt.Printf("Version: %s\n", version)
-		return nil
-	}
-
-	var browsers []linkquisition.Browser
-
-	var err error
-
-	a.Logger.Debug(fmt.Sprintf("Starting linkquisition with args: `%s`", strings.Join(os.Args, " ")))
+	a.Logger.Debug(fmt.Sprintf("Starting linkquisition with args: `%s`", strings.Join(args, " ")))
 
 	urlToOpen := args[1]
-
-	if _, err = url.ParseRequestURI(urlToOpen); err != nil {
+	if _, err := url.ParseRequestURI(urlToOpen); err != nil {
 		a.Logger.Error("Invalid URL: " + urlToOpen)
-
-		return nil
+		return &uiState{done: true}, nil
 	}
 
 	for _, plug := range a.plugins {
@@ -204,19 +213,56 @@ func (a *Application) Run(_ context.Context) error {
 	}
 
 	if isConfigured {
-		if browser, matchErr := a.SettingsService.GetSettings().GetMatchingBrowser(urlToOpen); matchErr == nil {
-			a.Logger.Debug(fmt.Sprintf("found a matching browser-rule for browser `%s` with URL `%s`", browser.Name, urlToOpen))
-			if a.BrowserService.OpenUrlWithBrowser(urlToOpen, browser) == nil {
-				return nil
-			}
-		}
-		browsers = a.SettingsService.GetSettings().GetSelectableBrowsers()
-	} else if browsers, err = a.BrowserService.GetAvailableBrowsers(); err != nil {
-		return err
-	} else {
-		a.Logger.Warn("browsers not configured, falling back to system settings")
+		return a.resolveConfiguredBrowsers(urlToOpen)
 	}
 
-	bp := NewBrowserPicker(a.Fapp, a.BrowserService, browsers, a.SettingsService)
-	return bp.Run(context.Background(), urlToOpen)
+	b, err := a.BrowserService.GetAvailableBrowsers()
+	if err != nil {
+		return nil, err
+	}
+	a.Logger.Warn("browsers not configured, falling back to system settings")
+	return &uiState{urlToOpen: urlToOpen, browsers: b}, nil
+}
+
+func (a *Application) resolveConfiguredBrowsers(urlToOpen string) (*uiState, error) {
+	if browser, matchErr := a.SettingsService.GetSettings().GetMatchingBrowser(urlToOpen); matchErr == nil {
+		a.Logger.Debug(fmt.Sprintf("found a matching browser-rule for browser `%s` with URL `%s`", browser.Name, urlToOpen))
+		if a.BrowserService.OpenUrlWithBrowser(urlToOpen, browser) == nil {
+			return &uiState{done: true}, nil
+		}
+	}
+	return &uiState{urlToOpen: urlToOpen, browsers: a.SettingsService.GetSettings().GetSelectableBrowsers()}, nil
+}
+
+func (a *Application) Run(_ context.Context) error {
+	args := os.Args
+
+	// --- Non-UI path: version flag ---
+	if len(args) >= 2 && (args[1] == "--version" || args[1] == "-v" || args[1] == "version") {
+		fmt.Printf("Version: %s\n", version)
+		return nil
+	}
+
+	state, err := a.prepareUIState(args)
+	if err != nil {
+		return err
+	}
+	if state.done {
+		return nil
+	}
+
+	// --- GTK4 event loop ---
+	a.GtkApp.ConnectActivate(func() {
+		if state.showConfigurator {
+			NewConfigurator(a.GtkApp, a.BrowserService, a.SettingsService).Run()
+		} else {
+			NewBrowserPicker(a.GtkApp, a.BrowserService, state.browsers, a.SettingsService).Run(context.Background(), state.urlToOpen)
+		}
+	})
+
+	exitCode := a.GtkApp.Run(nil)
+	if exitCode != 0 {
+		return fmt.Errorf("gtk application exited with code %d", exitCode)
+	}
+	return nil
 }

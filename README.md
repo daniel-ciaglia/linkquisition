@@ -1,6 +1,10 @@
 # Linkquisition
 
-![coverage](https://raw.githubusercontent.com/Strobotti/linkquisition/gh-pages/.badges/main/coverage.svg)
+This fork was reworked to use GTK4, Golang 1.26, and some small adjustments added.
+
+Make sure to set `CC=clang` if you are not using the Taskfiles. Somehow GCC 15 has issues with the GTK4 bindings.
+
+---
 
 Linkquisition is a fast, configurable browser-picker for Linux desktop written in Go.
 
@@ -105,7 +109,7 @@ amd64, as I do not have time/access to other architectures for testing easily.
 - Taskfile (https://taskfile.dev/#/installation)
 - Build-dependencies:
   ```shell
-  sudo apt-get update && sudo apt-get install -y gcc libgl1-mesa-dev xorg-dev
+  sudo apt-get update && sudo apt-get install -y gcc libgtk-4-dev
   ```
 
 ### Building locally

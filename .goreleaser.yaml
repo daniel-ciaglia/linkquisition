@@ -65,7 +65,7 @@ nfpms:
       - rpm
     priority: optional
     dependencies:
-      - libgl1
+      - libgtk-4-0
     contents:
       - src: ./dist/application_{{ .Os }}_{{ .Arch }}_v1/linkquisition
         dst: /usr/bin/linkquisition

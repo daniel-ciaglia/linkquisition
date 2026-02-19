@@ -18,6 +18,8 @@ type TerminusPluginSettings struct {
 	RequestTimeout string `json:"requestTimeout"`
 }
 
+const defaultRequestTimeoutMs = 2000
+
 var _ linkquisition.Plugin = (*terminus)(nil)
 
 type terminus struct {
@@ -29,7 +31,7 @@ type terminus struct {
 
 func (p *terminus) Setup(serviceProvider linkquisition.PluginServiceProvider, config map[string]any) {
 	p.MaxRedirects = 5
-	p.RequestTimeout = time.Millisecond * 2000
+	p.RequestTimeout = time.Millisecond * defaultRequestTimeoutMs
 
 	var settings TerminusPluginSettings
 	if err := mapstructure.Decode(config, &settings); err != nil {
@@ -67,7 +69,7 @@ func (p *terminus) ModifyUrl(address string) string {
 	for i := 0; i < p.MaxRedirects; i++ {
 		req, _ := http.NewRequestWithContext(ctx, http.MethodHead, modifiedUrl, http.NoBody)
 		req.Header.Set("User-Agent", "linkquisition")
-		resp, err := p.Client.Do(req)
+		resp, err := p.Client.Do(req) //nolint:gosec // SSRF is intentional: this plugin resolves redirect chains
 		if err != nil {
 			p.serviceProvider.GetLogger().Warn(
 				fmt.Sprintf("error requesting HEAD %s", modifiedUrl),

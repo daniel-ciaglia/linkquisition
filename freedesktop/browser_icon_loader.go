@@ -3,11 +3,11 @@ package freedesktop
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
-
-	"fyne.io/fyne/v2"
 
 	"github.com/strobotti/linkquisition"
 )
@@ -42,7 +42,7 @@ func (l *DefaultBrowserIconLoader) LoadIcon(browser linkquisition.Browser) ([]by
 		desktopEntry.Icon + ".*",
 	}
 
-	cmd := exec.Command("find", findArgs...)
+	cmd := exec.CommandContext(context.Background(), "find", findArgs...)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 
@@ -61,16 +61,10 @@ func (l *DefaultBrowserIconLoader) LoadIcon(browser linkquisition.Browser) ([]by
 		// 			/usr/share/icons/HighContrast/22x22/apps/firefox.png
 		//      ...and by sheer "luck" we get the 128x128 icon here which is probably the best one, but still
 		//      not guaranteed to be the best one - especially if the user wants to use a high-contrast theme.
-		if icon, errLoad := fyne.LoadResourceFromPath(scanner.Text()); errLoad == nil {
-			return icon.Content(), nil
+		if iconBytes, errLoad := os.ReadFile(scanner.Text()); errLoad == nil { //nolint:gosec // path comes from 'find' rooted at /usr/share/icons
+			return iconBytes, nil
 		}
 	}
 
-	// As a fallback we'll use the application icon - not very elegant approach, is it?
-	icon, err := fyne.LoadResourceFromPath("Icon.png")
-	if err != nil {
-		return nil, err
-	}
-
-	return icon.Content(), nil
+	return nil, fmt.Errorf("no icon found for browser `%s`", browser.Name)
 }

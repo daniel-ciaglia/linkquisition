@@ -234,8 +234,9 @@ type SettingsService interface {
 	// GetLogFolderPath returns the path to the config-file
 	GetLogFolderPath() string
 
-	// GetPluginFolderPath returns the absolute path to the plugin-folder
-	GetPluginFolderPath() string
+	// GetPluginFolderPaths returns the ordered list of directories to search for plugins,
+	// following the XDG base directory specification (XDG_DATA_HOME, then XDG_DATA_DIRS).
+	GetPluginFolderPaths() []string
 }
 
 func GetDefaultSettings() *Settings {

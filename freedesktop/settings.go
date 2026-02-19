@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/strobotti/linkquisition"
 )
 
-var configDirPerms = 0700
-var configFilePerms = 0600
+var configDirPerms os.FileMode = 0o700
+var configFilePerms os.FileMode = 0o600
 
 var _ linkquisition.SettingsService = (*SettingsService)(nil)
 
@@ -51,8 +52,32 @@ func (s *SettingsService) GetLogFolderPath() string {
 	return filepath.Join(os.TempDir(), "linkquisition")
 }
 
-func (s *SettingsService) GetPluginFolderPath() string {
-	return "/usr/lib/linkquisition/plugins"
+func (s *SettingsService) GetPluginFolderPaths() []string {
+	var paths []string
+
+	// XDG_DATA_HOME (default: ~/.local/share)
+	dataHome, isset := os.LookupEnv("XDG_DATA_HOME")
+	if !isset {
+		if home, err := os.UserHomeDir(); err == nil {
+			dataHome = filepath.Join(home, ".local", "share")
+		}
+	}
+	if dataHome != "" {
+		paths = append(paths, filepath.Join(dataHome, "linkquisition", "plugins"))
+	}
+
+	// XDG_DATA_DIRS (default: /usr/local/share:/usr/share)
+	dataDirs, isset := os.LookupEnv("XDG_DATA_DIRS")
+	if !isset {
+		dataDirs = "/usr/local/share:/usr/share"
+	}
+	for dir := range strings.SplitSeq(dataDirs, ":") {
+		if dir != "" {
+			paths = append(paths, filepath.Join(dir, "linkquisition", "plugins"))
+		}
+	}
+
+	return paths
 }
 
 func (s *SettingsService) ReadSettings() (*linkquisition.Settings, error) {
@@ -77,11 +102,11 @@ func (s *SettingsService) WriteSettings(settings *linkquisition.Settings) error 
 	}
 
 	// ensure the directory exists
-	if errMkdir := os.MkdirAll(s.GetConfigFolderPath(), os.FileMode(configDirPerms)); errMkdir != nil {
+	if errMkdir := os.MkdirAll(s.GetConfigFolderPath(), configDirPerms); errMkdir != nil {
 		return fmt.Errorf("failed to write settings: %v", errMkdir)
 	}
 
-	if errWrite := os.WriteFile(s.GetConfigFilePath(), data, os.FileMode(configFilePerms)); errWrite != nil {
+	if errWrite := os.WriteFile(s.GetConfigFilePath(), data, configFilePerms); errWrite != nil {
 		return fmt.Errorf("failed to write settings: %v", errWrite)
 	}
 
@@ -132,7 +157,7 @@ func (s *SettingsService) ScanBrowsers() error {
 	newSettings := oldSettings.UpdateWithBrowsers(browsers).NormalizeBrowsers()
 
 	// ensure the directory exists
-	if errMkdir := os.MkdirAll(s.GetConfigFolderPath(), os.FileMode(configDirPerms)); errMkdir != nil {
+	if errMkdir := os.MkdirAll(s.GetConfigFolderPath(), configDirPerms); errMkdir != nil {
 		return fmt.Errorf("failed to scan browsers: %v", errMkdir)
 	}
 
@@ -141,7 +166,7 @@ func (s *SettingsService) ScanBrowsers() error {
 		return fmt.Errorf("failed to scan browsers: %v", err)
 	}
 
-	//nolint:gomnd
+	//nolint:mnd
 	if err := os.WriteFile(s.GetConfigFilePath(), data, 0600); err != nil {
 		return fmt.Errorf("failed to scan browsers: %v", err)
 	}
