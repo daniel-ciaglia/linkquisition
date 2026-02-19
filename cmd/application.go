@@ -171,6 +171,59 @@ func setupLogger(settingsService linkquisition.SettingsService) *slog.Logger {
 	return slog.New(slog.NewTextHandler(logWriter, logHandlerOpts))
 }
 
+// uiState holds the pre-computed state needed to decide what GTK window to open.
+type uiState struct {
+	showConfigurator bool
+	urlToOpen        string
+	browsers         []linkquisition.Browser
+	done             bool // true when the action is already handled (no UI needed)
+}
+
+// prepareUIState resolves which UI to show and pre-fetches browsers when needed.
+func (a *Application) prepareUIState(args []string) (*uiState, error) {
+	if len(args) < 2 { //nolint:mnd
+		return &uiState{showConfigurator: true}, nil
+	}
+
+	a.Logger.Debug(fmt.Sprintf("Starting linkquisition with args: `%s`", strings.Join(args, " ")))
+
+	urlToOpen := args[1]
+	if _, err := url.ParseRequestURI(urlToOpen); err != nil {
+		a.Logger.Error("Invalid URL: " + urlToOpen)
+		return &uiState{done: true}, nil
+	}
+
+	for _, plug := range a.plugins {
+		urlToOpen = plug.ModifyUrl(urlToOpen)
+	}
+
+	isConfigured, configErr := a.SettingsService.IsConfigured()
+	if configErr != nil {
+		a.Logger.Warn("configuration error", "error", configErr.Error())
+	}
+
+	if isConfigured {
+		return a.resolveConfiguredBrowsers(urlToOpen)
+	}
+
+	b, err := a.BrowserService.GetAvailableBrowsers()
+	if err != nil {
+		return nil, err
+	}
+	a.Logger.Warn("browsers not configured, falling back to system settings")
+	return &uiState{urlToOpen: urlToOpen, browsers: b}, nil
+}
+
+func (a *Application) resolveConfiguredBrowsers(urlToOpen string) (*uiState, error) {
+	if browser, matchErr := a.SettingsService.GetSettings().GetMatchingBrowser(urlToOpen); matchErr == nil {
+		a.Logger.Debug(fmt.Sprintf("found a matching browser-rule for browser `%s` with URL `%s`", browser.Name, urlToOpen))
+		if a.BrowserService.OpenUrlWithBrowser(urlToOpen, browser) == nil {
+			return &uiState{done: true}, nil
+		}
+	}
+	return &uiState{urlToOpen: urlToOpen, browsers: a.SettingsService.GetSettings().GetSelectableBrowsers()}, nil
+}
+
 func (a *Application) Run(_ context.Context) error {
 	args := os.Args
 
@@ -180,59 +233,20 @@ func (a *Application) Run(_ context.Context) error {
 		return nil
 	}
 
-	// --- Determine what UI to show ---
-	showConfigurator := len(args) < 2 //nolint:mnd
-
-	var urlToOpen string
-	var browsers []linkquisition.Browser
-
-	if !showConfigurator {
-		a.Logger.Debug(fmt.Sprintf("Starting linkquisition with args: `%s`", strings.Join(os.Args, " ")))
-
-		urlToOpen = args[1]
-
-		if _, err := url.ParseRequestURI(urlToOpen); err != nil {
-			a.Logger.Error("Invalid URL: " + urlToOpen)
-			return nil
-		}
-
-		for _, plug := range a.plugins {
-			urlToOpen = plug.ModifyUrl(urlToOpen)
-		}
-
-		isConfigured, configErr := a.SettingsService.IsConfigured()
-		if configErr != nil {
-			a.Logger.Warn("configuration error", "error", configErr.Error())
-		}
-
-		if isConfigured {
-			if browser, matchErr := a.SettingsService.GetSettings().GetMatchingBrowser(urlToOpen); matchErr == nil {
-				a.Logger.Debug(fmt.Sprintf("found a matching browser-rule for browser `%s` with URL `%s`", browser.Name, urlToOpen))
-				if a.BrowserService.OpenUrlWithBrowser(urlToOpen, browser) == nil {
-					return nil
-				}
-			}
-			browsers = a.SettingsService.GetSettings().GetSelectableBrowsers()
-		} else if b, err := a.BrowserService.GetAvailableBrowsers(); err != nil {
-			return err
-		} else {
-			a.Logger.Warn("browsers not configured, falling back to system settings")
-			browsers = b
-		}
+	state, err := a.prepareUIState(args)
+	if err != nil {
+		return err
+	}
+	if state.done {
+		return nil
 	}
 
 	// --- GTK4 event loop ---
 	a.GtkApp.ConnectActivate(func() {
-		if showConfigurator {
-			c := NewConfigurator(a.GtkApp, a.BrowserService, a.SettingsService)
-			if err := c.Run(); err != nil {
-				a.Logger.Error("configurator error", "error", err)
-			}
+		if state.showConfigurator {
+			NewConfigurator(a.GtkApp, a.BrowserService, a.SettingsService).Run()
 		} else {
-			bp := NewBrowserPicker(a.GtkApp, a.BrowserService, browsers, a.SettingsService)
-			if err := bp.Run(context.Background(), urlToOpen); err != nil {
-				a.Logger.Error("browser picker error", "error", err)
-			}
+			NewBrowserPicker(a.GtkApp, a.BrowserService, state.browsers, a.SettingsService).Run(context.Background(), state.urlToOpen)
 		}
 	})
 

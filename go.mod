@@ -4,7 +4,6 @@ go 1.26.0
 
 require (
 	github.com/diamondburned/gotk4/pkg v0.3.1
-	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/net v0.50.0

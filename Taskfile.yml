@@ -1,5 +1,8 @@
 version: '3'
 
+env:
+  CC: clang
+
 includes:
   dev: Taskfile.dev.yml
   build: Taskfile.build.yml

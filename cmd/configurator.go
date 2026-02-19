@@ -29,7 +29,7 @@ func NewConfigurator(
 	}
 }
 
-func (c *Configurator) Run() error {
+func (c *Configurator) Run() {
 	win := gtk.NewApplicationWindow(c.gtkApp)
 	win.SetTitle("Linkquisition settings")
 	win.SetResizable(false)
@@ -41,12 +41,10 @@ func (c *Configurator) Run() error {
 	win.SetChild(notebook)
 
 	win.SetVisible(true)
-
-	return nil
 }
 
 func (c *Configurator) getGeneralTab() gtk.Widgetter {
-	vbox := gtk.NewBox(gtk.OrientationVertical, 6)
+	vbox := gtk.NewBox(gtk.OrientationVertical, spacingMedium)
 
 	// MAKE DEFAULT -LABEL
 	makeDefaultLabel := gtk.NewLabel(
@@ -132,7 +130,7 @@ func (c *Configurator) getGeneralTab() gtk.Widgetter {
 }
 
 func (c *Configurator) getAboutTab() gtk.Widgetter {
-	vbox := gtk.NewBox(gtk.OrientationVertical, 6)
+	vbox := gtk.NewBox(gtk.OrientationVertical, spacingMedium)
 
 	loader := gdkpixbuf.NewPixbufLoader()
 	if err := loader.Write(resources.LinkquisitionIconBytes); err == nil {
@@ -146,7 +144,7 @@ func (c *Configurator) getAboutTab() gtk.Widgetter {
 						fmt.Printf("error opening url: %s", err.Error())
 					}
 				})
-				headerBox := gtk.NewBox(gtk.OrientationHorizontal, 4)
+				headerBox := gtk.NewBox(gtk.OrientationHorizontal, spacingSmall)
 				headerBox.Append(btn)
 				headerBox.Append(gtk.NewLabel(fmt.Sprintf("Linkquisition %s", version)))
 				vbox.Append(headerBox)

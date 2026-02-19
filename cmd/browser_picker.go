@@ -12,6 +12,13 @@ import (
 	"github.com/strobotti/linkquisition"
 )
 
+const (
+	windowDefaultWidth = 600
+	spacingSmall       = 4
+	spacingMedium      = 6
+	spacingLarge       = 8
+)
+
 type BrowserPicker struct {
 	gtkApp          *gtk.Application
 	browserService  linkquisition.BrowserService
@@ -33,8 +40,7 @@ func NewBrowserPicker(
 	}
 }
 
-//nolint:funlen
-func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) error {
+func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) {
 	var remember bool
 	// TODO give user the option to choose between site and domain (and later on regex, too)
 	rememberMatchType := linkquisition.BrowserMatchTypeSite
@@ -42,9 +48,9 @@ func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) error {
 	win := gtk.NewApplicationWindow(picker.gtkApp)
 	win.SetTitle("Linkquisition")
 	win.SetResizable(false)
-	win.SetDefaultSize(600, -1)
+	win.SetDefaultSize(windowDefaultWidth, -1)
 
-	vbox := gtk.NewBox(gtk.OrientationVertical, 6)
+	vbox := gtk.NewBox(gtk.OrientationVertical, spacingMedium)
 
 	var buttons []*gtk.Button
 
@@ -60,7 +66,7 @@ func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) error {
 	urlEntry.SetEditable(false)
 	urlEntry.SetCanFocus(false)
 
-	urlRow := gtk.NewBox(gtk.OrientationHorizontal, 4)
+	urlRow := gtk.NewBox(gtk.OrientationHorizontal, spacingSmall)
 	urlRow.Append(gtk.NewLabel("Open:"))
 	urlRow.Append(urlEntry)
 	vbox.Append(urlRow)
@@ -119,8 +125,6 @@ func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) error {
 	win.AddController(shortcutCtrl)
 
 	win.SetVisible(true)
-
-	return nil
 }
 
 func (picker *BrowserPicker) makeBrowserButton(
@@ -130,7 +134,7 @@ func (picker *BrowserPicker) makeBrowserButton(
 	rememberMatchType *string,
 ) *gtk.Button {
 	btn := gtk.NewButton()
-	box := gtk.NewBox(gtk.OrientationHorizontal, 8)
+	box := gtk.NewBox(gtk.OrientationHorizontal, spacingLarge)
 
 	iconBytes, err := picker.browserService.GetIconForBrowser(browser)
 	if err != nil {
