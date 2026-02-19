@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/strobotti/linkquisition"
 )
@@ -51,8 +52,32 @@ func (s *SettingsService) GetLogFolderPath() string {
 	return filepath.Join(os.TempDir(), "linkquisition")
 }
 
-func (s *SettingsService) GetPluginFolderPath() string {
-	return "/usr/lib/linkquisition/plugins"
+func (s *SettingsService) GetPluginFolderPaths() []string {
+	var paths []string
+
+	// XDG_DATA_HOME (default: ~/.local/share)
+	dataHome, isset := os.LookupEnv("XDG_DATA_HOME")
+	if !isset {
+		if home, err := os.UserHomeDir(); err == nil {
+			dataHome = filepath.Join(home, ".local", "share")
+		}
+	}
+	if dataHome != "" {
+		paths = append(paths, filepath.Join(dataHome, "linkquisition", "plugins"))
+	}
+
+	// XDG_DATA_DIRS (default: /usr/local/share:/usr/share)
+	dataDirs, isset := os.LookupEnv("XDG_DATA_DIRS")
+	if !isset {
+		dataDirs = "/usr/local/share:/usr/share"
+	}
+	for dir := range strings.SplitSeq(dataDirs, ":") {
+		if dir != "" {
+			paths = append(paths, filepath.Join(dir, "linkquisition", "plugins"))
+		}
+	}
+
+	return paths
 }
 
 func (s *SettingsService) ReadSettings() (*linkquisition.Settings, error) {

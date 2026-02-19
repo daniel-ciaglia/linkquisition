@@ -9,7 +9,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"gopkg.in/alessio/shellescape.v1"
+	"al.essio.dev/pkg/shellescape"
 
 	"github.com/strobotti/linkquisition"
 )

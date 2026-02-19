@@ -36,6 +36,7 @@ func NewApplication() *Application {
 		"io.github.strobotti.linkquisition",
 		gio.ApplicationFlagsNone,
 	)
+	gtk.WindowSetDefaultIconName("io.github.strobotti.linkquisition")
 
 	xdgService := &freedesktop.XdgService{}
 	browserService := &freedesktop.BrowserService{
@@ -66,6 +67,16 @@ func NewApplication() *Application {
 	return a
 }
 
+func resolvePluginPath(name string, folders []string) (string, bool) {
+	for _, folder := range folders {
+		candidate := filepath.Join(folder, name)
+		if _, err := os.Stat(candidate); err == nil {
+			return candidate, true
+		}
+	}
+	return "", false
+}
+
 func setupPlugins(
 	settingsService linkquisition.SettingsService,
 	pluginServiceProvider linkquisition.PluginServiceProvider,
@@ -86,13 +97,12 @@ func setupPlugins(
 		}
 
 		if _, err := os.Stat(pluginPath); err != nil {
-			pluginPathToCheck := filepath.Join(settingsService.GetPluginFolderPath(), pluginPath)
-			if _, err := os.Stat(pluginPathToCheck); err == nil {
-				pluginPath = pluginPathToCheck
-			} else {
-				logger.Error("Error loading plugin", "plugin", pluginSettings.Path, "error", err.Error())
+			resolved, ok := resolvePluginPath(pluginPath, settingsService.GetPluginFolderPaths())
+			if !ok {
+				logger.Error("Error loading plugin: not found in any XDG data path", "plugin", pluginSettings.Path)
 				continue
 			}
+			pluginPath = resolved
 		}
 
 		plug, err := plugin.Open(pluginPath)

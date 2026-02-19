@@ -10,13 +10,35 @@ tasks:
       - rm -rfv dist package
 
   linux:
+    desc: prepare files for packaging
     cmds:
-      - mkdir -p package/linux/usr/share/applications package/linux/usr/share/pixmaps
-      - cp Icon.png package/linux/usr/share/pixmaps/linkquisition.png
+      - mkdir -p package/linux/usr/share/applications package/linux/usr/share/icons/hicolor/256x256/apps
+      - cp resources/Icon.png package/linux/usr/share/icons/hicolor/256x256/apps/io.github.strobotti.linkquisition.png
       - cp templates/linkquisition.desktop package/linux/usr/share/applications/linkquisition.desktop
 
+  install-local:
+    desc: "Builds and installs linkquisition into the XDG local hierarchy"
+    vars:
+      DATA_HOME:
+        sh: echo ${XDG_DATA_HOME:-$HOME/.local/share}
+      BIN_HOME:
+        sh: echo ${XDG_BIN_HOME:-$HOME/.local/bin}
+    cmds:
+      - task build:linux-amd64
+      - mkdir -p {{.BIN_HOME}}
+          {{.DATA_HOME}}/applications
+          {{.DATA_HOME}}/icons/hicolor/256x256/apps
+          {{.DATA_HOME}}/linkquisition/plugins
+      - cp bin/linkquisition-linux-amd64 {{.BIN_HOME}}/linkquisition
+      - cp resources/Icon.png {{.DATA_HOME}}/icons/hicolor/256x256/apps/io.github.strobotti.linkquisition.png
+      - cp templates/linkquisition.desktop {{.DATA_HOME}}/applications/linkquisition.desktop
+      - go build -buildmode=plugin -o {{.DATA_HOME}}/linkquisition/plugins/unwrap.so ./plugins/unwrap/unwrap.go
+      - go build -buildmode=plugin -o {{.DATA_HOME}}/linkquisition/plugins/terminus.so ./plugins/terminus/terminus.go
+      - update-desktop-database {{.DATA_HOME}}/applications
+      - gtk-update-icon-cache --force {{.DATA_HOME}}/icons/hicolor
+
   deb:
-    description: "Builds a Debian package for local testing"
+    desc: "Builds a Debian package for local testing"
     cmds:
       - task build
       - task build:plugins
