@@ -175,9 +175,7 @@ func (picker *BrowserPicker) makeBrowserButton(
 			}
 		}
 
-		go func() {
-			_ = picker.browserService.OpenUrlWithBrowser(urlToOpen, &browser)
-		}()
+		_ = picker.browserService.OpenUrlWithBrowser(urlToOpen, &browser)
 		picker.gtkApp.Quit()
 	})
 

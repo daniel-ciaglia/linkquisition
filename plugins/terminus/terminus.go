@@ -69,7 +69,7 @@ func (p *terminus) ModifyUrl(address string) string {
 	for i := 0; i < p.MaxRedirects; i++ {
 		req, _ := http.NewRequestWithContext(ctx, http.MethodHead, modifiedUrl, http.NoBody)
 		req.Header.Set("User-Agent", "linkquisition")
-		resp, err := p.Client.Do(req) //nolint:gosec // SSRF is intentional: this plugin resolves redirect chains
+		resp, err := p.Client.Do(req)
 		if err != nil {
 			p.serviceProvider.GetLogger().Warn(
 				fmt.Sprintf("error requesting HEAD %s", modifiedUrl),
