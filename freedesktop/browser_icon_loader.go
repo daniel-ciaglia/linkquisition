@@ -61,7 +61,7 @@ func (l *DefaultBrowserIconLoader) LoadIcon(browser linkquisition.Browser) ([]by
 		// 			/usr/share/icons/HighContrast/22x22/apps/firefox.png
 		//      ...and by sheer "luck" we get the 128x128 icon here which is probably the best one, but still
 		//      not guaranteed to be the best one - especially if the user wants to use a high-contrast theme.
-		if iconBytes, errLoad := os.ReadFile(scanner.Text()); errLoad == nil { //nolint:gosec // path comes from 'find' rooted at /usr/share/icons
+		if iconBytes, errLoad := os.ReadFile(scanner.Text()); errLoad == nil {
 			return iconBytes, nil
 		}
 	}
