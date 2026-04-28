@@ -9,15 +9,23 @@ jobs:
   golangci:
     name: lint
     runs-on: ubuntu-latest
+    env:
+      CC: clang
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-go@v6
         with:
           go-version: '1.26'
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-${{ runner.os }}-gtk4-${{ hashFiles('.github/workflows/*.yml') }}
+          restore-keys: apt-${{ runner.os }}-gtk4-
       - name: Install build dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y clang libgtk-4-dev libglib2.0-dev libgirepository1.0-dev libgirepository1.0-dev
+          sudo apt-get update -q
+          sudo apt-get install -y clang libgtk-4-dev libglib2.0-dev libgirepository1.0-dev
       - name: golangci-lint
         uses: golangci/golangci-lint-action@v9
         with:
@@ -27,6 +35,8 @@ jobs:
   test:
     name: test
     runs-on: ubuntu-latest
+    env:
+      CC: clang
 
     steps:
       - uses: actions/checkout@v6
@@ -34,31 +44,46 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: '1.26'
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-${{ runner.os }}-gtk4-${{ hashFiles('.github/workflows/*.yml') }}
+          restore-keys: apt-${{ runner.os }}-gtk4-
       - name: Install build dependencies
         run: |
-          sudo apt-get update
+          sudo apt-get update -q
           sudo apt-get install -y clang libgtk-4-dev libglib2.0-dev libgirepository1.0-dev
       - name: Install Task
-        uses: go-task/setup-task@v1
+        uses: go-task/setup-task@v2
       - name: Run Tests
         run: task test
 
   build:
     name: build the application and plugins
     runs-on: ubuntu-latest
+    env:
+      CC: clang
+
     steps:
       - uses: actions/checkout@v6
       - name: Install Go
         uses: actions/setup-go@v6
         with:
           go-version: '1.26'
+      - name: Cache apt packages
+        uses: actions/cache@v4
+        with:
+          path: /var/cache/apt/archives
+          key: apt-${{ runner.os }}-gtk4-${{ hashFiles('.github/workflows/*.yml') }}
+          restore-keys: apt-${{ runner.os }}-gtk4-
       - name: Install build dependencies
         run: |
-          sudo apt-get update
+          sudo apt-get update -q
           sudo apt-get install -y clang libgtk-4-dev libglib2.0-dev libgirepository1.0-dev
 
       - name: Install Task
-        uses: go-task/setup-task@v1
+        uses: go-task/setup-task@v2
 
       - name: Build main application
         run: task build:linux-amd64
