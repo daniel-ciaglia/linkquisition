@@ -44,8 +44,5 @@ jobs:
 
       - uses: go-semantic-release/action@v1
         with:
-          github-token: ${{ secrets.DEPENDABOT_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           hooks: goreleaser
-        env:
-          # GITHUB_TOKEN -env is required for the goreleaser -hook
-          GITHUB_TOKEN: ${{ secrets.DEPENDABOT_TOKEN }}
