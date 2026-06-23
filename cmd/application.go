@@ -18,6 +18,12 @@ import (
 	"github.com/strobotti/linkquisition/freedesktop"
 )
 
+const (
+	daemonFlag  = "--daemon"
+	appID       = "io.github.strobotti.linkquisition"
+	minArgCount = 2
+)
+
 const logDirPerms = 0755
 const logFilePerms = 0644
 
@@ -27,16 +33,14 @@ type Application struct {
 	BrowserService  linkquisition.BrowserService
 	SettingsService linkquisition.SettingsService
 
-	Logger  *slog.Logger
-	plugins []linkquisition.Plugin
+	Logger   *slog.Logger
+	plugins  []linkquisition.Plugin
+	isDaemon bool
 }
 
 func NewApplication() *Application {
-	gtkApp := gtk.NewApplication(
-		"io.github.strobotti.linkquisition",
-		gio.ApplicationFlagsNone,
-	)
-	gtk.WindowSetDefaultIconName("io.github.strobotti.linkquisition")
+	gtkApp := gtk.NewApplication(appID, gio.ApplicationHandlesCommandLine)
+	gtk.WindowSetDefaultIconName(appID)
 
 	xdgService := &freedesktop.XdgService{}
 	browserService := &freedesktop.BrowserService{
@@ -191,7 +195,7 @@ type uiState struct {
 
 // prepareUIState resolves which UI to show and pre-fetches browsers when needed.
 func (a *Application) prepareUIState(args []string) (*uiState, error) {
-	if len(args) < 2 { //nolint:mnd
+	if len(args) < minArgCount {
 		return &uiState{showConfigurator: true}, nil
 	}
 
@@ -237,32 +241,53 @@ func (a *Application) resolveConfiguredBrowsers(urlToOpen string) (*uiState, err
 func (a *Application) Run(_ context.Context) error {
 	args := os.Args
 
-	// --- Non-UI path: version flag ---
-	if len(args) >= 2 && (args[1] == "--version" || args[1] == "-v" || args[1] == "version") {
+	if len(args) >= minArgCount && (args[1] == "--version" || args[1] == "-v" || args[1] == "version") {
 		fmt.Printf("Version: %s\n", version)
 		return nil
 	}
 
-	state, err := a.prepareUIState(args)
-	if err != nil {
-		return err
-	}
-	if state.done {
-		return nil
-	}
-
-	// --- GTK4 event loop ---
-	a.GtkApp.ConnectActivate(func() {
-		if state.showConfigurator {
-			NewConfigurator(a.GtkApp, a.BrowserService, a.SettingsService).Run()
-		} else {
-			NewBrowserPicker(a.GtkApp, a.BrowserService, state.browsers, a.SettingsService).Run(context.Background(), state.urlToOpen)
-		}
+	a.GtkApp.ConnectCommandLine(func(cmdLine *gio.ApplicationCommandLine) int {
+		return a.handleCommandLine(cmdLine)
 	})
 
-	exitCode := a.GtkApp.Run(nil)
+	exitCode := a.GtkApp.Run(args)
 	if exitCode != 0 {
 		return fmt.Errorf("gtk application exited with code %d", exitCode)
 	}
 	return nil
+}
+
+// handleCommandLine is invoked by the GTK event loop for every invocation,
+// local or remote. The defer ensures secondary (remote) processes exit promptly
+// rather than waiting for Go's GC to finalize the GApplicationCommandLine.
+func (a *Application) handleCommandLine(cmdLine *gio.ApplicationCommandLine) int {
+	defer cmdLine.Done()
+
+	args := cmdLine.Arguments()
+
+	if len(args) >= minArgCount && args[1] == daemonFlag {
+		if !a.isDaemon {
+			a.Logger.Info("daemon mode started")
+			a.GtkApp.Hold()
+			a.isDaemon = true
+		}
+		return 0
+	}
+
+	state, err := a.prepareUIState(args)
+	if err != nil {
+		a.Logger.Error("error preparing UI state", "error", err.Error())
+		return 1
+	}
+	if state.done {
+		return 0
+	}
+
+	if state.showConfigurator {
+		NewConfigurator(a.GtkApp, a.BrowserService, a.SettingsService).Run()
+	} else {
+		NewBrowserPicker(a.GtkApp, a.BrowserService, state.browsers, a.SettingsService).Run(context.Background(), state.urlToOpen)
+	}
+
+	return 0
 }

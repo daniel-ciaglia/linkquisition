@@ -50,7 +50,7 @@ func (x *XdgService) GetDesktopEntryPathForBinary(binary string) (string, error)
 
 	// grep all the .desktop files in the paths for the binary basename and return the first match:
 	pattern := fmt.Sprintf("^Exec=(%s|%s)", binaryPath, filepath.Base(binaryPath))
-	grepArgs := []string{"-r", "-l", "-m", "1", "-E", pattern, "--include", "*.desktop"}
+	grepArgs := []string{grepFlagRecursive, grepFlagFilesOnly, "-m", "1", grepFlagExtendedRE, pattern, "--include", "*.desktop"}
 	grepArgs = append(grepArgs, paths...)
 	cmd := exec.CommandContext(context.Background(), "grep", grepArgs...)
 

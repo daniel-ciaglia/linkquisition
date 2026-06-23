@@ -14,6 +14,12 @@ import (
 	"github.com/strobotti/linkquisition"
 )
 
+const (
+	grepFlagRecursive  = "-r"
+	grepFlagFilesOnly  = "-l"
+	grepFlagExtendedRE = "-E"
+)
+
 var _ linkquisition.BrowserService = (*BrowserService)(nil)
 
 type BrowserService struct {
@@ -31,9 +37,9 @@ func (b *BrowserService) GetAvailableBrowsers() ([]linkquisition.Browser, error)
 
 	// grep all the .desktop files in the paths for the category "WebBrowser":
 	grepArgs := []string{
-		"-r",
-		"-l",
-		"-E",
+		grepFlagRecursive,
+		grepFlagFilesOnly,
+		grepFlagExtendedRE,
 		"^Categories=.*WebBrowser",
 	}
 

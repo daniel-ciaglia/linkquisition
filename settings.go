@@ -16,6 +16,8 @@ const (
 
 	SourceAuto   = "auto"
 	SourceManual = "manual"
+
+	defaultLogLevel = "info"
 )
 
 type BrowserMatch struct {
@@ -241,7 +243,7 @@ type SettingsService interface {
 
 func GetDefaultSettings() *Settings {
 	return &Settings{
-		LogLevel: "info",
+		LogLevel: defaultLogLevel,
 		Browsers: nil,
 		Ui:       UiSettings{},
 	}
@@ -251,7 +253,7 @@ func MapSettingsLogLevelToSlog(logLevel string) slog.Level {
 	switch strings.ToLower(logLevel) {
 	case "debug":
 		return slog.LevelDebug
-	case "info":
+	case defaultLogLevel:
 		return slog.LevelInfo
 	case "warn":
 		return slog.LevelWarn

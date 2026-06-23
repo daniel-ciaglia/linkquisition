@@ -86,7 +86,9 @@ func (s *SettingsService) ReadSettings() (*linkquisition.Settings, error) {
 		return nil, fmt.Errorf("unable to open config-file `%s` for reading: %v", s.GetConfigFilePath(), err)
 	}
 
-	var settings = &linkquisition.Settings{}
+	// Start from application defaults so any key absent from the config file
+	// keeps its intended default value rather than Go's zero value.
+	settings := linkquisition.GetDefaultSettings()
 
 	if err := json.Unmarshal(data, settings); err != nil {
 		return nil, fmt.Errorf("unable to parse the config-file `%s`: %v", s.GetConfigFilePath(), err)

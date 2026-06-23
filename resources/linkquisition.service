@@ -1,0 +1,13 @@
+[Unit]
+Description=Linkquisition browser picker daemon
+Documentation=https://github.com/Strobotti/linkquisition
+# Stop when the graphical session ends.
+PartOf=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/linkquisition --daemon
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=graphical-session.target

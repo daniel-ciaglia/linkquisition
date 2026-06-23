@@ -63,6 +63,28 @@ on next scan. Also, if you want to hide a browser from the list, you can have it
 Please note that the scan will use the "command" -attribute as the identifier for the browser, so if change the command
 it will be treated as a different browser and might be removed if not safe-guarded with `"source": "manual"` -setting.
 
+## Background daemon
+
+Linkquisition supports a `--daemon` flag that keeps the process alive after
+handling a URL, so subsequent link-clicks reach an already-running GTK instance
+instead of starting fresh each time.
+
+The recommended way to run it is as a **systemd user service**. A unit file is
+bundled with the package:
+
+```bash
+# system-wide install (package manager usually does this)
+sudo cp /usr/lib/linkquisition/linkquisition.service /usr/lib/systemd/user/
+
+# or per-user install
+cp /usr/lib/linkquisition/linkquisition.service ~/.config/systemd/user/
+
+systemctl --user enable --now linkquisition.service
+```
+
+Once the service is running, every link click is forwarded to the daemon via
+GApplication's single-instance mechanism — no extra configuration needed.
+
 ### An example config.json -file
 
 ```json
