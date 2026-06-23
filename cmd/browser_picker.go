@@ -55,7 +55,7 @@ func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) {
 	var buttons []*gtk.Button
 
 	for i := range picker.browsers {
-		btn := picker.makeBrowserButton(picker.browsers[i], urlToOpen, &remember, &rememberMatchType)
+		btn := picker.makeBrowserButton(picker.browsers[i], urlToOpen, &remember, &rememberMatchType, win)
 		buttons = append(buttons, btn)
 		vbox.Append(btn)
 	}
@@ -91,7 +91,7 @@ func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) {
 	keyCtrl.ConnectKeyPressed(func(keyval, _ uint, _ gdk.ModifierType) bool {
 		switch keyval {
 		case gdk.KEY_Escape:
-			picker.gtkApp.Quit()
+			win.Close()
 			return true
 		case gdk.KEY_Return:
 			if len(buttons) > 0 {
@@ -118,7 +118,7 @@ func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) {
 			display := gdk.DisplayGetDefault()
 			clipboard := display.Clipboard()
 			clipboard.SetText(urlToOpen)
-			picker.gtkApp.Quit()
+			win.Close()
 			return true
 		}),
 	))
@@ -132,6 +132,7 @@ func (picker *BrowserPicker) makeBrowserButton(
 	urlToOpen string,
 	remember *bool,
 	rememberMatchType *string,
+	win *gtk.ApplicationWindow,
 ) *gtk.Button {
 	btn := gtk.NewButton()
 	box := gtk.NewBox(gtk.OrientationHorizontal, spacingLarge)
@@ -176,7 +177,7 @@ func (picker *BrowserPicker) makeBrowserButton(
 		}
 
 		_ = picker.browserService.OpenUrlWithBrowser(urlToOpen, &browser)
-		picker.gtkApp.Quit()
+		win.Close()
 	})
 
 	return btn
