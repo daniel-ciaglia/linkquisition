@@ -121,14 +121,18 @@ func (b *BrowserService) OpenUrlWithBrowser(u string, browser *linkquisition.Bro
 	command = strings.ReplaceAll(command, "%u", u)
 	command = strings.ReplaceAll(command, "%U", u)
 
-	// now just execute the damn command
+	var stderr bytes.Buffer
 	cmd := exec.CommandContext(context.Background(), "sh", "-c", command)
+	cmd.Stderr = &stderr
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("failed to open URL `%s` with browser `%s`: %v", u, browser.Name, err)
 	}
 
-	// Reap the child in the background; we don't need to wait for the browser to exit.
-	go cmd.Wait() //nolint:errcheck
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			log.Printf("browser `%s` exited with error: %v; stderr: %s", browser.Name, err, stderr.String())
+		}
+	}()
 
 	return nil
 }
