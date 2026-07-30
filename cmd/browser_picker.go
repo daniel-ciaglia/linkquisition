@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"runtime"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
 	"github.com/diamondburned/gotk4/pkg/gdkpixbuf/v2"
@@ -85,6 +86,11 @@ func (picker *BrowserPicker) Run(_ context.Context, urlToOpen string) {
 	}
 
 	win.SetChild(vbox)
+
+	// Force a GC pass when the window is destroyed so that GTK GObjects held by
+	// button-click/key-controller closures are collected promptly. Without this,
+	// Go's GC may not run between invocations and the objects accumulate.
+	win.ConnectDestroy(func() { runtime.GC() })
 
 	// Keyboard shortcuts: ESC and Enter and number keys
 	keyCtrl := gtk.NewEventControllerKey()
@@ -176,7 +182,9 @@ func (picker *BrowserPicker) makeBrowserButton(
 			}
 		}
 
-		_ = picker.browserService.OpenUrlWithBrowser(urlToOpen, &browser)
+		if err := picker.browserService.OpenUrlWithBrowser(urlToOpen, &browser); err != nil {
+			fmt.Printf("Error opening URL with browser %s: %v\n", browser.Name, err)
+		}
 		win.Close()
 	})
 
