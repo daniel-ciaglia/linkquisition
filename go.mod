@@ -8,7 +8,7 @@ require (
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/net v0.57.0
-	gopkg.in/ini.v1 v1.67.1
+	gopkg.in/ini.v1 v1.67.3
 )
 
 require (
