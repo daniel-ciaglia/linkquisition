@@ -4,7 +4,7 @@ go 1.26.0
 
 require (
 	al.essio.dev/pkg/shellescape v1.6.0
-	github.com/diamondburned/gotk4/pkg v0.3.1
+	github.com/diamondburned/gotk4/pkg v0.4.0
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/net v0.57.0
