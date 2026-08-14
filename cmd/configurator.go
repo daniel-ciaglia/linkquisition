@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
-	"github.com/diamondburned/gotk4/pkg/gdkpixbuf/v2"
+	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
 	"github.com/strobotti/linkquisition"
@@ -132,24 +132,19 @@ func (c *Configurator) getGeneralTab() gtk.Widgetter {
 func (c *Configurator) getAboutTab() gtk.Widgetter {
 	vbox := gtk.NewBox(gtk.OrientationVertical, spacingMedium)
 
-	loader := gdkpixbuf.NewPixbufLoader()
-	if err := loader.Write(resources.LinkquisitionIconBytes); err == nil {
-		if err := loader.Close(); err == nil {
-			if pixbuf := loader.Pixbuf(); pixbuf != nil {
-				img := gtk.NewImageFromPaintable(gdk.NewTextureForPixbuf(pixbuf))
-				btn := gtk.NewButton()
-				btn.SetChild(img)
-				btn.ConnectClicked(func() {
-					if err := c.browserService.OpenUrlWithDefaultBrowser("https://github.com/Strobotti/linkquisition"); err != nil {
-						fmt.Printf("error opening url: %s", err.Error())
-					}
-				})
-				headerBox := gtk.NewBox(gtk.OrientationHorizontal, spacingSmall)
-				headerBox.Append(btn)
-				headerBox.Append(gtk.NewLabel(fmt.Sprintf("Linkquisition %s", version)))
-				vbox.Append(headerBox)
+	if texture, err := gdk.NewTextureFromBytes(glib.NewBytes(resources.LinkquisitionIconBytes)); err == nil {
+		img := gtk.NewImageFromPaintable(texture)
+		btn := gtk.NewButton()
+		btn.SetChild(img)
+		btn.ConnectClicked(func() {
+			if err := c.browserService.OpenUrlWithDefaultBrowser("https://github.com/Strobotti/linkquisition"); err != nil {
+				fmt.Printf("error opening url: %s", err.Error())
 			}
-		}
+		})
+		headerBox := gtk.NewBox(gtk.OrientationHorizontal, spacingSmall)
+		headerBox.Append(btn)
+		headerBox.Append(gtk.NewLabel(fmt.Sprintf("Linkquisition %s", version)))
+		vbox.Append(headerBox)
 	}
 
 	return vbox
