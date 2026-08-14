@@ -6,7 +6,6 @@ import (
 	"runtime"
 
 	"github.com/diamondburned/gotk4/pkg/gdk/v4"
-	"github.com/diamondburned/gotk4/pkg/gdkpixbuf/v2"
 	"github.com/diamondburned/gotk4/pkg/glib/v2"
 	"github.com/diamondburned/gotk4/pkg/gtk/v4"
 
@@ -147,15 +146,10 @@ func (picker *BrowserPicker) makeBrowserButton(
 	if err != nil {
 		fmt.Println(err)
 	} else {
-		loader := gdkpixbuf.NewPixbufLoader()
-		if err := loader.Write(iconBytes); err == nil {
-			if err := loader.Close(); err == nil {
-				if pixbuf := loader.Pixbuf(); pixbuf != nil {
-					img := gtk.NewImageFromPaintable(gdk.NewTextureForPixbuf(pixbuf))
-					img.SetIconSize(gtk.IconSizeNormal)
-					box.Append(img)
-				}
-			}
+		if texture, err := gdk.NewTextureFromBytes(glib.NewBytes(iconBytes)); err == nil {
+			img := gtk.NewImageFromPaintable(texture)
+			img.SetIconSize(gtk.IconSizeNormal)
+			box.Append(img)
 		}
 	}
 
