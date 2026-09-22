@@ -1,5 +1,5 @@
-al.essio.dev/pkg/shellescape v1.6.0 h1:NxFcEqzFSEVCGN2yq7Huv/9hyCEGVa/TncnOOBBeXHA=
-al.essio.dev/pkg/shellescape v1.6.0/go.mod h1:6sIqp7X2P6mThCQ7twERpZTuigpr6KbZWtls1U8I890=
+al.essio.dev/pkg/shellescape v1.6.1 h1:ki/kUs/D3dDbZpyKbNRhwY/ajgAEIJFagVKDWKnofQ8=
+al.essio.dev/pkg/shellescape v1.6.1/go.mod h1:6sIqp7X2P6mThCQ7twERpZTuigpr6KbZWtls1U8I890=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/diamondburned/gotk4/pkg v0.4.1 h1:w4BwVUUBkKyNLz5HKHN2Oz3kZCTLHfpfKgB/su1p6uo=
