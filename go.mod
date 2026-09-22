@@ -7,7 +7,7 @@ require (
 	github.com/diamondburned/gotk4/pkg v0.4.1
 	github.com/mitchellh/mapstructure v1.5.0
 	github.com/stretchr/testify v1.12.1
-	golang.org/x/net v0.58.0
+	golang.org/x/net v0.59.0
 	gopkg.in/ini.v1 v1.67.3
 )
 
