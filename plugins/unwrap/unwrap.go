@@ -62,7 +62,7 @@ func (p *unwrap) ModifyUrl(u string) string {
 
 			if parsed.Query().Has(rule.Parameter) {
 				newUrl := parsed.Query().Get(rule.Parameter)
-				p.serviceProvider.GetLogger().Debug(fmt.Sprintf("url modified `%s` => `%s`", u, newUrl), "plugin", "unwrap")
+				p.serviceProvider.GetLogger().Debug(fmt.Sprintf("url modified `%#q` => `%#q`", u, newUrl), "plugin", "unwrap")
 
 				if !p.settings.RequireBrowserMatchToUnwrap {
 					// the plugin is configured to always unwrap even if there's no matching browser-rule for final URL
@@ -72,7 +72,7 @@ func (p *unwrap) ModifyUrl(u string) string {
 					// the plugin is configured to only unwrap if there's a matching browser-rule for final URL
 					p.serviceProvider.GetLogger().Debug(
 						fmt.Sprintf(
-							"found a matching browser-rule for browser `%s` with URL `%s`",
+							"found a matching browser-rule for browser `%#q` with URL `%#q`",
 							browser.Name,
 							newUrl,
 						), "plugin", "unwrap",
