@@ -199,7 +199,7 @@ func (a *Application) prepareUIState(args []string) (*uiState, error) {
 		return &uiState{showConfigurator: true}, nil
 	}
 
-	a.Logger.Debug(fmt.Sprintf("Starting linkquisition with args: `%s`", strings.Join(args, " ")))
+	a.Logger.Debug(fmt.Sprintf("Starting linkquisition with args: `%#q`", strings.Join(args, " ")))
 
 	urlToOpen := args[1]
 	if _, err := url.ParseRequestURI(urlToOpen); err != nil {
@@ -230,7 +230,7 @@ func (a *Application) prepareUIState(args []string) (*uiState, error) {
 
 func (a *Application) resolveConfiguredBrowsers(urlToOpen string) (*uiState, error) {
 	if browser, matchErr := a.SettingsService.GetSettings().GetMatchingBrowser(urlToOpen); matchErr == nil {
-		a.Logger.Debug(fmt.Sprintf("found a matching browser-rule for browser `%s` with URL `%s`", browser.Name, urlToOpen))
+		a.Logger.Debug(fmt.Sprintf("found a matching browser-rule for browser `%#q` with URL `%#q`", browser.Name, urlToOpen))
 		if a.BrowserService.OpenUrlWithBrowser(urlToOpen, browser) == nil {
 			return &uiState{done: true}, nil
 		}
